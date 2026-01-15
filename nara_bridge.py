@@ -2,6 +2,11 @@
 import sys, json, struct, os, subprocess, requests
 from pathlib import Path
 
+# --- DEBUG LOGGING ---
+DEBUG_LOG = Path(__file__).parent / "bridge_debug.log"
+with open(DEBUG_LOG, "a") as f:
+    f.write("Bridge triggered by Firefox\n")
+
 # Change this path to your preferred permanent folder
 SAVE_PATH = Path.home() / "Documents/Pensions"
 SAVE_PATH.mkdir(parents=True, exist_ok=True)
