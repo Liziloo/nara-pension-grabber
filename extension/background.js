@@ -1,31 +1,56 @@
-console.log("Extension Background Script Loaded");
-
 browser.action.onClicked.addListener(async (tab) => {
-  console.log("Button clicked on tab:", tab.id);
+  console.log("Starting targeted scrape...");
 
   try {
     const results = await browser.scripting.executeScript({
       target: { tabId: tab.id },
       func: () => {
-        console.log("Scraping page...");
-        const naid = document.body.innerText.match(/\b\d{9}\b/)?.[0];
-        const max = document
-          .querySelector('input[aria-label="Enter Image number"]')
-          ?.getAttribute("max");
+        console.log("Searching specifically for the NAID...");
+
+        // Target the shared viewer references section from your screenshot
+        const infoPanel = document.querySelector(
+          '#shared-image-viewer-references-section, aside[aria-label="Information"]'
+        );
+
+        if (!infoPanel) {
+          console.error("Info panel not found in DOM.");
+          return { naid: null, max: "1" };
+        }
+
+        // Instead of innerText (which hangs), let's look at all div text content
+        const allDivs = infoPanel.querySelectorAll("div");
+        let naid = null;
+
+        for (let div of allDivs) {
+          // Check if the div content is EXACTLY or contains a 9-digit number
+          const text = div.textContent.trim();
+          if (/^\d{9}$/.test(text)) {
+            naid = text;
+            console.log("Found NAID in div:", naid);
+            break;
+          }
+        }
+
+        const msgInput = document.querySelector(
+          'input[aria-label="Enter Image number"]'
+        );
+        const max = msgInput ? msgInput.getAttribute("max") : "1";
+
         return { naid, max };
       },
     });
 
     const data = results[0].result;
-    console.log("Scraped data:", data);
 
     if (data.naid) {
-      console.log("Sending message to native host...");
+      console.log("Found NAID:", data.naid, "sending to Python...");
       browser.runtime.sendNativeMessage("com.nara.pension.grabber", data);
     } else {
-      console.warn("No NAID found on this page.");
+      console.error(
+        "Scraper failed: Could not find 9-digit ID in the info panel."
+      );
     }
   } catch (err) {
-    console.error("Extension Error:", err);
+    console.error("Execution error:", err);
   }
 });
